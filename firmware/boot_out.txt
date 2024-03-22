@@ -1,0 +1,7 @@
+Adafruit CircuitPython 8.2.9 on 2023-12-06; Adafruit KB2040 with rp2040
+Board ID:adafruit_kb2040
+UID:DF625857831E3F35
+boot.py output:
+Booting as left: False
+Hold top innermost thumb key to enable storage
+Enabling Storage...
