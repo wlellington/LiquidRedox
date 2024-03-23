@@ -16,7 +16,7 @@ There are a few unique features that I had not seen on other KMK based builds th
 
 1. Fully split configurations with identical firmware on each half (to make source management easy)
 2. Two rotary encoders (one per side) that both function even when one only one side is connected to the host computer
-3. Status lights that are tied to things like layer, host side lock information, and dynamic macro binding
+3. Status RGB lights that are tied to things like layer, host side lock information, and dynamic macro binding
 4. **A modified KMK Split module that allows multiple modules/extensions to share the UART connection for message passing**
 5. Dynamic Macros that can be recorded and bound to a specific macro key for easy of use
 
@@ -37,13 +37,26 @@ This firmware allows the user to record an on-the-fly macro to one of four slots
 5. Tap the macro key that you wish to play whenever you want
 NOTE: These macros do not persist across power cycles and will not be able to capute actions created by the rotary encoders.
 
-## Software Implementation notes
+## Software Implementation Notes
 
-This whole project is running off of standard KMK modules, so you will need to follow the standard instructions for installing CircuitPython and KMK
+This whole project is running off of standard KMK modules, so you will need to follow the standard instructions for installing [CircuitPython](https://learn.adafruit.com/welcome-to-circuitpython/installing-circuitpython) and [KMK](http://kmkfw.io/docs/Getting_Started/). I recommend you ensure that both these things are working before you start soldering things together, just to make sure everything works. In fact, in my own testing, I temporarily soldered the UART and power pins of both controller boards together to verify that I could get the UART connection at least partially working before moving on to later steps of the project.
 
 #### UART Support
+One of the major downsides of the KMK Split module as it currently exists, is that it does not allow for any other modules to use it's UART connection to communicate. This means that any other modules you install that are not directly tied to the keymap (like encoders, lock key status, etc) will not work when you first set things up. This is because the Split module is essentially only passing over the index of the key being pressed from the client side (side not connected to the computer) to the host side (side connected to the computer). This means that other modules will not be able to share their information, which manifests as the modules on the client side (mostly) not working. I first noticed this when testing the encoder module, as it does not directly interact with the keyboard matrix scanners or updates, to the Split Module can do nothing to share encoder updates from keyboard half to keyboard half. This means that the encoder on the side plugged into the computer will work fine, but the other side will not. After a fair amount of reading forum threads and PRs on the KMK github, I realized that there probably was not a simple/established solution to this, so I implemented my own.
+
+To fix this, I have written several expansion classes (overloaded classes?) that re-implement a few features to make it possible for the Split module to oversee communications between not only the keyboard matrix, but any other modules you choose to employ. In this repo, I added UART support for the Encoder module and LockStatus module so that the keyboard halves always perform as expected no matter which side is plugged in. The most important changes can be seen in [uart_split.py](https://github.com/wlellington/LiquidRedox/blob/main/firmware/uart_split.py) which completely overhauls the UART receiving handler so that rather than expecting only one UART headerv (defined by the split module itself), it can use a list of headers (enrolled during setup) to determine which modules are trying to communicate, how to decode their communications, and which "message queue" to store their output in. With this modification to Split, the user can tweak other extensions/modules to send formatted UART messages from either side (assuming a two wire UART connection), as well as receive messages from the other half.
+
+For example: The Encoder module generates messages on the client side (not connected to computer) and sends them to the host side. On the host side, the messages are decoded and interpreted as the corresponding keyboard taps. Since the encoder keymap is set for both sides, I also added the ability to add a None'd out encoder to serve as a placeholder on each side. This way the keymap between sides looks the same, but you can create a fake encoder that does not get updated, all while keeping the EncoderHandler happy. The implementation of this can be seen in [uart_encoder.py](https://github.com/wlellington/LiquidRedox/blob/main/firmware/uart_encoder.py)
+For example: The LockStatus module generates capslock and numlock status messages depending on what the computer's USB interface reports. The host side then formats and sends these messages to the client side, where they are decoded and used to update the clients understanding of the computers lock state. This is important mostly because capslock and numlock are on opposite halves of the keyboard, yet only the side connected to the computer actually knows what the host computer's key lock status is. In this firmware, this is used to control indicator lights. [uart_lock_status.py](https://github.com/wlellington/LiquidRedox/blob/main/firmware/uart_lock_status.py)
+
+Check out the uart_*.py files to understand how this is done in each module. Keep in mind that you need to **import the overloaded version in your code.py in order for the changes to have effect**.
 
 #### Goofy Pin Maps
+The split module usually assumes that the two halves of the keyboard are identical, and just have the column wires swapped. I dont like this assumption because it assumes two things - 1) each half has the same keys/layout, 2) that the same keys/layout are implemented in the same way. To get around this, I wrote a custom [kb.py](https://github.com/wlellington/LiquidRedox/blob/main/firmware/kb.py) that automatically detects which side it is booting on and assigns the pin map accordingly. This means you can mess up wiring your pins (like I did) and fix it in the software OR have asymetrical keyboards! 
+
+
+
+#### Status RGB LED Lighting
 
 ## Build Notes
 
@@ -68,14 +81,14 @@ After printing, I sanded down the layer lines and rough features with 120 grit s
 
 After everything was dry, I started installing the switches (I used [TTC Venus'](https://mechanicalkeyboards.com/products/ttc-venus-45g-linear-pcb-mount-switch?_pos=1&_sid=83bf7ec0e&_ss=r) since they are buttery smooth and have a nice "thock"). I noticed that my gaps had come back (presumably since the paint had added to the tolerances on the switch holes), so I *very gently heated the spreading spots with a hair dryer while clamping the gaps shut with the screws and switches all installed*. This is a very, very delicate process as too much heat too fast can cause PLA to warp in weird ways, so I took my time with this and kept the hair dryer moving constantly, and only around the areas that needed to be relaxed. I also recommend putting a peice of paper between the part and the clamps to keep the clamps from maring or discoloring the surface of the white paint.
 
-#### The wiring
+#### The Electronics
 Once happy with the fit, I moved on to the wiring. I dont have to many notes on this whole process, since it was pretty straight forward overall. I think there are a lot of handwired keyboard projects out there that explain the matrix wiring pretty well, so I'll lean on them to better explain things. Check out some of the other linked projects in this README to get better examples.
 
 Heres a link to the pinout for the board I used: [KB2040 Pinout](https://learn.adafruit.com/adafruit-kb2040/pinouts)
 
 That said, I should note that I used a few pins on the KB2040 that the docs dont explicitly state you can use for matrix scanning. Since all of the pins on RP2040 microcontroller itself are GPIO, they can serve many purposes beyond just what the circuit board silkscreen mentions. To that end, I used almost every pin on the board including MISO, MOSI, SCK, etc. for matrix scanning functions. In addition, I bought a pack of [Qwiic](https://www.sparkfun.com/qwiic) (or "4 Pin JST", or "STEMMA QT" as Adafruit and others might call it) connector cables and cut them up so that I could access the SDA and SCL pins hidden inside the connected jack. This gave me more pins to play with and is how I had enough room to add the Neopixel lighting signal. The encoders each took three pins as well as a connection to power and ground. 
 
-Ideally, both sides would be wired the exact same way. I made a few mistakes in keeping my pin map consitent, but luckily I found a way to fix this in the firmware and it was not an issue in the end.
+Ideally, both sides would be wired the exact same way. I made a few mistakes in keeping my pin map consitent, but luckily I found a way to fix this in the firmware and it was not an issue in the end (See "Goofy Pin Maps").
 
 ![Wiring](https://github.com/wlellington/LiquidRedox/blob/main/images/20240320_223157.jpg)
 
