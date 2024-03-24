@@ -1,7 +1,8 @@
 # LiquidRedox
 A completely custom, 3D printed, split mechanical keyboard based on the Adafruit KB2040, programmed with the [KMK Firmware](http://kmkfw.io/)
 
-![LiquidRedox Keyboard](https://github.com/wlellington/LiquidRedox/blob/main/images/20240321_224324.jpg)
+![LiquidRedox Keyboard](https://github.com/wlellington/LiquidRedox/blob/main/images/top_view.jpg)
+![LiquidRedox Keyboard](https://github.com/wlellington/LiquidRedox/blob/main/images/angled_view.jpg)
 
 ## About
 
@@ -66,6 +67,8 @@ I have never been one for RGB lighting animations, but I do like having status i
 
 This custom extension uses an overloaded RGB class object from the KMK RGB extension to manage the LEDs themselves. My custom implementation just adds a function to let the user statically set an LED's color based on a HSV value where None can be used to keep existing settings (like brightness). It does not change the way that the animations work or are rendered, but gives finer grain control over the color of the LEDs you might want to specifically color for indicators. It wasnt really intended to be used in concert with other animations, but just to color things for this specific layout.
 
+![Backlighting](https://github.com/wlellington/LiquidRedox/blob/main/images/backlighting.jpg)
+
 ## Build Notes
 
 #### The Case
@@ -79,7 +82,7 @@ The bottom case was designed to only be as thick as it needed ot be, since I wan
 
 The main issue with the case came down to the tolerancing of the holes for the switches. At first, I made the holes a bit too small (using the same tolerancing from the Redox Media layout). The switches were snug and held in well, but I soon realized that cramming the switches into these slightly too tight spaces caused the panel to curl upward around the edges (like a potato chip), creating gaps around the edges where the two halves of the case would meet. 
 
-![Flex Issue](https://github.com/wlellington/LiquidRedox/blob/main/images/20240205_172352.jpg)
+![Flex Issue](https://github.com/wlellington/LiquidRedox/blob/main/images/gap_issue.jpg)
 
 I solved this by adding a bit more tolerance to the switch mount holes and reprinting. This seemed to work at the time, but by the time I painted everything I had added back enough material to reintroduce the problem. This part of the design is somethign that could certainly be improved on in the future. I also added an extra standoff peg/pylon in the center of the board (looks like a screw mount colum with no hole in it) to support the keybed in the middle to give it a firmer feel and reduce flex.
 
@@ -88,6 +91,8 @@ I printed the parts with fairly low infill (since they were so thin) and relativ
 After printing, I sanded down the layer lines and rough features with 120 grit sandpaper. This process took ages, but ended up being worth it in the end. Once sanded and cleaned, I gave the case peices several layers of high build primer ([like this](https://www.rustoleum.com/product-catalog/consumer-brands/auto/primers/2-in-1-filler-and-sandable-primer)) and touched up spots over the course of several hours where more filling was necessary. Once dry (a day or so), I wet sanded the case parts down with fine grit sandpaper (800 grit) to smooth out the surface layer of the primer. I let it dry for another two days or so and then did many light coats of a standard white rustoleum flat spray paint. In my testing, I also tried a layer of clearcoat, but this gave it a plasticy sheen I did not like, so I elected to leave the final layer just the flat white paint. I let this dry for a few days before working with it again, since the paint seemed somewhat soft 24 hours later.
 
 After everything was dry, I started installing the switches (I used [TTC Venus'](https://mechanicalkeyboards.com/products/ttc-venus-45g-linear-pcb-mount-switch?_pos=1&_sid=83bf7ec0e&_ss=r) since they are buttery smooth and have a nice "thock"). I noticed that my edge gaps had come back (presumably since the paint had added to the tolerances on the switch holes), so I *very gently heated the spreading spots with a hair dryer while clamping the gaps shut with the screws and switches all installed*. This is a very, very delicate process as too much heat too fast can cause PLA to warp in weird ways, so I took my time with this and kept the hair dryer moving constantly and only applied heat around the areas that needed to be relaxed. I also recommend putting a peice of paper between the part and the clamps to keep the clamps from maring or discoloring the surface of the white paint.
+
+![Flex Issue After Paint](https://github.com/wlellington/LiquidRedox/blob/main/images/gap_issue_after_paint.jpg)
 
 #### The Electronics
 Once happy with the fit, I moved on to the wiring. I dont have to many notes on this whole process, since it was pretty straight forward overall. I think there are a lot of handwired keyboard projects out there that explain the matrix wiring pretty well, so I'll lean on them to better explain things. Check out some of the other linked projects in this README to get better examples.
@@ -98,13 +103,13 @@ That said, I should note that I used a few pins on the KB2040 that the docs do n
 
 Ideally, both sides would be wired the exact same way. I made a few mistakes in keeping my pin map consitent, but luckily I found a way to fix this in the firmware and it was not an issue in the end (See "Goofy Pin Maps").
 
-![Wiring](https://github.com/wlellington/LiquidRedox/blob/main/images/20240320_223157.jpg)
+![Wiring](https://github.com/wlellington/LiquidRedox/blob/main/images/wiring.jpg)
 
 I bought a panel mount USB-C connector (which the case design takes into account) rather than try to make the microcontroller mount cleanly to the outside of the case. [Here](https://www.amazon.com/dp/B086YBP5VW?ref=ppx_yo2ov_dt_b_product_details&th=1) is the one I used, but if you end up needing a different cable, you will likely need to tweak the case design to accomidate different screw holes or a snap in type connector. I used [some standard TRRS](https://www.amazon.com/dp/B06XG3YTC4?psc=1&ref=ppx_yo2ov_dt_b_product_details) jacks (with some heatshrink) to make the UART connections. I attached the RAW pin of the KB2040 to the sleeve of the cable, UART to the two rings, and power to the tip. I had to whittle away some of the plastic on the USB-C connector's panel side to make it fit the curve of the case, and completely removed the outer most layer of plastic on the side that connects to the KB2040 to save some room on thickness.
 
 **TRRS style connectors can be a bit dangerous since there is a potential to short power to ground when inserting/removing the cable. I recomment only plugging/unplugging the connection cable when the keyboard is completely unplugged from the Computer.** I specifically chose to put the ground on the tip (since it is most likely to touch other contacts on insertion, and power on the sleeve, since it is the last to make contact.
 
-![Jacks](https://github.com/wlellington/LiquidRedox/blob/main/images/20240320_223213.jpg)
+![Jacks](https://github.com/wlellington/LiquidRedox/blob/main/images/jacks.jpg)
 
 I recommend not screwing everything together till you know your firmware is working however, since you are likely causing a bit a damage to the screw holes each time you insert/remove the case screws. This means that theres a finite number of times you can add or remove the screws. In my process, I have problably done this six or seven times, but I am hesitant to open and close the case all willy-nilly. Since software troubleshooting can be a bit tricky (I had issues where the serial connection would drop out on me), I recommend leaving the case open so you can reach your microcontroller's reset button until you are close to finished.
 
