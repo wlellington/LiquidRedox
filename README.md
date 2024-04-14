@@ -115,8 +115,15 @@ I recommend not screwing everything together till you know your firmware is work
 
 When everything was said and done, I put some little black rubber dome feet on the bottom to keep the paint from scratching off on my desk surface and make the whole thing a bit more stable. I also packed a few small peices of foam between the LEDs and their surrounding components to help reduce light bleed.
 
+
+### Tenting Wedges
+To help make the angle of things feel a bit more natural, I have also designed a tenting wedge that can be printed and placed under each half. The wedges add a 5 degree angle up from front to back of the keyboard, and five degrees up from outside to inside. This does add some considerable hight to the whole thing, but so far I have found them to be pretty comfortable. The wedges are perfectly symmetrical, so just flip the provided half in your slicer when you need both.
+
+The wedges were designed with the rubber feet in mind, so use the wedges as a template to place your feet if you decide to add the tenting. The holes are all just 10 mm in diameter, so common rubber feet of around that size should work well. I added places on the bottoms of the wedges for feet as weel, but the addition height might not be worth it.
+
 ## TODO + Future Work
-1. Add "On Sleep" functions to turn off LEDs when host machine goes to sleep
+1. ~~Add "On Sleep" functions to turn off LEDs when host machine goes to sleep~~ (Done)
 2. Add wake function to wake host machine?
 3. Add ability to loop dynamic macros - RapidFire currently causes a pystack exhaustion
 4. Add unicode send strings to send emoticons - this currently causes a pystack exhastion using the unicode_sequence module
+5. ~~Add tenting wedge for mor ergonomic angle~~ (Done)
