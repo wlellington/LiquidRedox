@@ -18,10 +18,9 @@ from kmk.modules.dynamic_sequences import DynamicSequences
 from kmk.modules.split import SplitType, SplitSide
 from kmk.extensions.rgb import AnimationModes
 from kmk.extensions.media_keys import MediaKeys
-from kmk.modules.combos import Combos, Chord, Sequence
+from kmk.modules.combos import Combos, Sequence
 from kmk.handlers.sequences import simple_key_sequence
 from kmk.handlers.sequences import send_string
-from kmk.modules.rapidfire import RapidFire
 
 # Custom UART Stuff
 from uart_split import Split,
@@ -86,8 +85,6 @@ dynamic_sequences = DynamicSequences(
 keyboard.modules.append(dynamic_sequences)
 combos = Combos()
 keyboard.modules.append(combos)
-rapid_fire = RapidFire()
-keyboard.modules.append(RapidFire())
 
 
 # Side specific settings
@@ -127,19 +124,21 @@ rgb = RGB(pixel_pin=board.SDA,
         )
 keyboard.extensions.append(rgb)
 
-# Custom LEDStatus lighting settings
+# Custom LEDStatus lightving settings
 #   Not based on kmk statusLED by the way
 led_status = LEDStatus(
                     keyboard=keyboard,
                     rgb=rgb,
                     layers=layers,
                     layer_leds=[1,2,3,4],
-                    layer_colors=[CC.PRICKLY, CC.AMBER, CC.DEEP],
+                    layer_colors=[CC.PRICKLY, CC.AMBER, CC.DEEP, CC.DRIFT],
                     locks=lock_status,
                     caps_lock_leds=[0],
                     num_lock_leds=num_lock_leds,
                     dynamic_sequences = dynamic_sequences,
                     macro_leds=macro_leds,
+                    sleep_minutes = 15,
+                    sleep_leds = [0,1,2,3,4],
                     )
 keyboard.extensions.append(led_status)
 
@@ -216,7 +215,7 @@ R_4.after_press_handler(target_slot_4)
 
 ### Other Macros + Sequences ###
 
-# Board reset handler for reset chords
+# Board reset handler for reset key
 def restart(self, keyboard, *args, **kwargs):
     print("Resetting...")
     supervisor.reload()
@@ -256,9 +255,9 @@ CLOCK = simple_key_sequence(
 CALC  = simple_key_sequence(
     (
         KC.LGUI,
-        KC.MACRO_SLEEP_MS(50),
+        KC.MACRO_SLEEP_MS(100),
         send_string("calculator"),
-        KC.MACRO_SLEEP_MS(50),
+        KC.MACRO_SLEEP_MS(100),
         KC.ENT,
     )
 )
@@ -353,12 +352,6 @@ ______ = KC.TRNS
 M_4 = KC.MB_BTN4.clone()
 M_5 = KC.MB_BTN5.clone()
 
-# Reset chords
-combos.combos = [
-    Chord((KC.N1, KC.N2, KC.N3, KC.N4, KC.B), S_RST, timeout=200),
-    Chord((KC.N7, KC.N8, KC.N9, KC.N0, KC.N), S_RST, timeout=200),
-]
-
 ##### Keymaps #####
 
 # Encoder
@@ -375,12 +368,16 @@ encoder_handler.map = [
             (KC.RGB_VAD, KC.RGB_VAI, KC.RGB_TOG), # RGB brightness stuff
             (KC.TRNS, KC.TRNS, KC.TRNS),
         ), #NUMPAD LAYER
+        (
+            (KC.VOLD, KC.VOLU, KC.MUTE), # Volume stuff
+            (KC.TRNS, KC.TRNS, KC.TRNS),
+        ), #Gaming LAYER
     ]
 
 # keyboard
 keyboard.keymap = [
     [   # QWERTY
-        XXXXXX,  XXXXXX,  M_4,     M_5,     KC.PSCR, WINAPP,  XXXXXX,                           XXXXXX,    R_1,     R_2,     R_3,     R_4,    XXXXXX,  XXXXXX,
+        XXXXXX,  XXXXXX,  M_4,     M_5,     KC.PSCR, WINAPP,  XXXXXX,                          XXXXXX,    R_1,     R_2,     R_3,     R_4,    XXXXXX,  XXXXXX,
         KC.ESC,  KC.N1,   KC.N2,   KC.N3,   KC.N4,   KC.N5,   KC.MO(2),                        RECORD,  KC.N6,   KC.N7,   KC.N8,    KC.N9,   KC.N0,   KC.LBRC,
         KC.GRV,  KC.Q,    KC.W,    KC.E,    KC.R,    KC.T,    CTRLMC,                          KC.BSLS,  KC.Y,    KC.U,    KC.I,    KC.O,    KC.P,    KC.RBRC,
         KC.TAB,  KC.A,    KC.S,    KC.D,    KC.F,    KC.G,                                               KC.H,    KC.J,    KC.K,    KC.L,    KC.SCLN, KC.QUOT,
@@ -389,19 +386,27 @@ keyboard.keymap = [
     ],
     [   # Navigation + Function
         XXXXXX,  XXXXXX, KC.MPRV, KC.MNXT,  ______,   KC.MPLY,  XXXXXX,                        XXXXXX,   ______,  ______,  ______,  ______,   XXXXXX,  XXXXXX,
-        XXXXXX,  KC.F1,   KC.F2,   KC.F3,   KC.F4,    KC.F5,  ______,                          ______,   KC.F6,   KC.F7,    KC.F8,   KC.F9,   KC.F10,  KC.F11,
+        XXXXXX,  KC.F1,   KC.F2,   KC.F3,   KC.F4,    KC.F5,    KC.TG(3),                        ______,   KC.F6,   KC.F7,    KC.F8,   KC.F9,   KC.F10,  KC.F11,
         XXXXXX, KC.MW_LT, XXXXXX, KC.MS_UP, XXXXXX,   KC.MW_UP, ______,                        ______,   KC.HOME, XXXXXX,  KC.UP,   XXXXXX,   KC.PGUP, KC.F12,
         XXXXXX, KC.MW_RT, KC.MS_LT, KC.MS_DN, KC.MS_RT, KC.MW_DN,                                        KC.END,  KC.LEFT, KC.DOWN, KC.RGHT,  KC.PGDN, XXXXXX,
-        ______,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX, KC.MB_MMB, ______,      ______,   ______,   XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,   XXXXXX,  XXXXXX,
+        ______,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX, KC.MB_MMB, S_RST,       S_RST,    ______,   XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,   XXXXXX,  XXXXXX,
         ______,  ______,  XXXXXX,  XXXXXX,        ______,    KC.MB_LMB, KC.MB_RMB,   ______,   ______,        ______,      KC.HOME, KC.PGUP,  KC.PGDN, KC.END,
     ],
     [   # Numpad
         XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,                          XXXXXX,  KC.NLCK, KC.PSLS, KC.PAST, KC.PMNS,  XXXXXX,   XXXXXX,
-        XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  ______,                          ______,   XXXXXX, KC.KP_7, KC.KP_8, KC.KP_9,  KC.PPLS,  XXXXXX,
+        XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  KC.MO(2),                        ______,   XXXXXX, KC.KP_7, KC.KP_8, KC.KP_9,  KC.PPLS,  XXXXXX,
         XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  ______,                          ______,   XXXXXX, KC.KP_4, KC.KP_5, KC.KP_6,  KC.PPLS,  XXXXXX,
         XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,                                             XXXXXX, KC.KP_1, KC.KP_2, KC.KP_3,  KC.PEQL,  XXXXXX,
-        ______,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  ______,  ______,       ______,   ______,   XXXXXX, KC.KP_0, KC.KP_0, KC.PDOT,  KC.PEQL,  XXXXXX,
+        ______,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  XXXXXX,  ______,  S_RST,        S_RST,    ______,   XXXXXX, KC.KP_0, KC.KP_0, KC.PDOT,  KC.PEQL,  XXXXXX,
         ______,  ______,  XXXXXX,  XXXXXX,         ______,    ______,  ______,       ______,   ______,        ______,      XXXXXX,  XXXXXX,   XXXXXX,  XXXXXX,
+    ],
+    [   # Gaming B}
+        XXXXXX,  XXXXXX,  ______,  ______,  ______,  ______,  XXXXXX,                          XXXXXX,   ______, ______,  ______,  ______,   XXXXXX,   XXXXXX,
+        ______,  ______,  ______,  ______,  ______,  ______,  KC.TO(0),                        ______,   ______, ______,  ______,  ______,   ______,   ______,
+        ______,  ______,  ______,  ______,  ______,  ______,  MANAGE,                          ______,   ______, ______,  ______,  ______,   ______,   ______,
+        ______,  ______,  ______,  ______,  ______,  ______,                                             ______, ______,  ______,  ______,   ______,   ______,
+        ______,  ______,  ______,  ______,  ______,  ______,  ______,  ______,       ______,   ______,   ______, ______,  ______,  ______,   ______,   ______,
+        ______,  XXXXXX,  KC.T,    KC.G,         ______,      ______,  ______,       ______,   ______,        ______,     ______,  ______,   ______,   ______,
     ],
     ]
 

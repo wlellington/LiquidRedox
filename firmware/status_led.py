@@ -26,11 +26,20 @@ class RGB(_RGB):
 
         self.set_hsv(hue, sat, val, index)
 
+        try:
+            self.curr_colors[index] = (hue, sat, val)
+        except Exception as E:
+            self.curr_colors = {}
+            self.curr_colors[index] = (hue, sat, val)
+
+        #print("Saved {}: {}".format(index, self.curr_colors[index]))
+
 # Constant values just to clean up code a bit, add your own here!
 class CustomColors:
     AMBER   = ( 8, 255, 100)
     PRICKLY = (253, 255, 100)
     DEEP    = (180, 255, 100)
+    DRIFT   = (105, 255, 100)
     WHITE   = (  0,   0, 100)
     BLIND   = (  0,   0, 200)
     OFF     = (  0,   0,   0)
@@ -62,6 +71,8 @@ class LEDStatus(Extension):
                 ind_color_1: CustomColors = CustomColors.WHITE,
                 ind_color_2: CustomColors = CustomColors.AMBER,
                 ind_color_3: CustomColors = CustomColors.DEEP,
+                sleep_minutes: int = None,
+                sleep_leds: list[int] = [],
                 ):
         self.keyboard = keyboard
         self.rgb = rgb
@@ -74,6 +85,7 @@ class LEDStatus(Extension):
         self.locks = locks
         self.caps_lock_leds = caps_lock_leds
         self.num_lock_leds = num_lock_leds
+        self._old_locks = None
 
         self.dynamic_sequences = dynamic_sequences
         self.macro_leds = macro_leds
@@ -82,9 +94,23 @@ class LEDStatus(Extension):
         self._flash_on = False
         self._flash_task = None
 
+        self._asleep = False
+
         self.ind_color_1 = ind_color_1
         self.ind_color_2 = ind_color_2
         self.ind_color_3 = ind_color_3
+
+        if sleep_minutes is None:
+            self.sleep_ms = 1000 * 60 * 10
+        else:
+            self.sleep_ms = 1000 * 60 * sleep_minutes
+
+        self.sleep_leds = sleep_leds
+        self._asleep = False
+        self._prev_asleep = False
+        self._sleep_timer = create_task(self.enable_sleep, after_ms=(self.sleep_ms))
+
+        self._old_colors = []
 
     # Set colors based on layer
     def _update_layers(self):
@@ -103,18 +129,24 @@ class LEDStatus(Extension):
             self.rgb.hue = color[0]
             self.rgb.sat = color[1]
 
-        self.need_update = update
+            self.need_update = update
 
     # Update colors based on host lock status
     def _update_locks(self):
+
+        # No update neede if locks not changed
+        if self._old_locks == self.locks.report:
+            return
+
+        self._old_locks = self.locks.report
+        update = True
+
         # Caps lock color logic
         if self.locks.get_caps_lock():
-            update = True
             for index in self.caps_lock_leds:
                 color = self.ind_color_1
                 self.rgb.set_static_led(color[0], color[1], None, index)
         else:
-            update = True
             for index in self.caps_lock_leds:
                 color = CustomColors.OFF
                 # This one needs the None so that the OFF color applies (zero bright)
@@ -123,12 +155,10 @@ class LEDStatus(Extension):
         # Num lock color logic (Only applies to layer 2)
         if self.keyboard.active_layers[0] == 2:
             if self.locks.get_num_lock():
-                update = True
                 for index in self.num_lock_leds:
                     color = self.ind_color_1
                     self.rgb.set_static_led(color[0], color[1], None, index)
             else:
-                update = True
                 for index in self.num_lock_leds:
                     color = CustomColors.OFF
                     self.rgb.set_static_led(color[0], color[1], color[2], index)
@@ -160,24 +190,55 @@ class LEDStatus(Extension):
                 self.rgb.set_static_led(color[0], color[1], None, self.macro_leds[current_ind-1])
                 self.need_update = True
 
+    def _all_off(self):
+        # Save old colors
+        self._old_colors = self.rgb.curr_colors.copy()
+
+        color = CustomColors.OFF
+        for index in self.sleep_leds:
+            self.rgb.set_static_led(color[0], color[1], color[2], index)
+
+        self.need_update = True
+
+    def _all_on(self):
+        for index, color in self._old_colors.items():
+            #print("Restoring {}: {}".format(index, color))
+            self.rgb.set_static_led(color[0], color[1], color[2], index)
+        self.need_update = True
+
     # Main update function
     def update_colors(self,):
         self.need_update = False
-        #print("updating locks")
 
-        # Update layer colors
-        self._update_layers()
+        # Turn everything off if asleep (only first time)
+        if self._asleep and not self._prev_asleep:
+            print("Sleeping leds...")
+            self._all_off()
+            self._prev_asleep = True
 
-        # Update lock colors
-        self._update_locks()
+        # Turn things back on on waking
+        elif self._prev_asleep and not self._asleep:
+            print("Waking leds...")
+            self._all_on()
+            self._prev_asleep = False
 
-        # Update macro colors
-        if self.macro_leds:
-            self._update_macros()
+        # If awake apply colors
+        else:
+            # Update layer colors
+            self._update_layers()
+
+            # Update lock colors
+            self._update_locks()
+
+            # Update macro colors
+            if self.macro_leds:
+                self._update_macros()
+
 
         # Force "animation update"
         if self.need_update:
             self.rgb.show()
+
 
     def on_runtime_enable(self, sandbox):
         return
@@ -193,6 +254,17 @@ class LEDStatus(Extension):
         return
 
     def after_matrix_scan(self, sandbox):
+        # Check if any keyboard updates occured, if not let the timer continue
+
+        if sandbox.matrix_update or sandbox.secondary_matrix_update:
+            self._asleep = False
+            #since the task may not exist on startup or after sleeping, allow failure
+            try:
+                cancel_task(self._sleep_timer)
+            except Exception as E:
+                print("No Sleep Timer!")
+                print(E)
+            self._sleep_timer = create_task(self.enable_sleep, after_ms=(self.sleep_ms))
         return
 
     def before_hid_send(self, sandbox):
@@ -202,11 +274,19 @@ class LEDStatus(Extension):
         return
 
     def on_powersave_enable(self, sandbox):
+        self._asleep = True
         return
 
     # Not sure if necessary
     def on_powersave_disable(self, sandbox):
+        self._asleep = False
         self._do_update()
 
     def deinit(self, sandbox):
         return
+
+    # Set sleep state to true only when timer expires
+    def enable_sleep(self):
+        #print("SLEEPING!!!")
+        self._asleep = True
+        self._prev_asleep = False
