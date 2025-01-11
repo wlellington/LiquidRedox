@@ -1,8 +1,8 @@
 # LiquidRedox
 A completely custom, 3D printed, split mechanical keyboard based on the Adafruit KB2040, programmed with the [KMK Firmware](http://kmkfw.io/)
 
-![LiquidRedox Keyboard](https://github.com/wlellington/LiquidRedox/blob/main/images/top_view.jpg)
-![LiquidRedox Keyboard](https://github.com/wlellington/LiquidRedox/blob/main/images/angled_view.jpg)
+![LiquidRedox Keyboard](images/angled_view.jpg)
+![LiquidRedox Keyboard](images/top_view.jpg)
 
 ## About
 
@@ -20,6 +20,8 @@ There are a few unique features that I had not seen on other KMK based builds th
 3. Status RGB lights that are tied to things like layer, host side lock information, and dynamic macro binding
 4. **A modified KMK Split module that allows multiple modules/extensions to share the UART connection for message passing**
 5. Dynamic Macros that can be recorded and bound to a specific macro key for easy of use
+
+![Backlighting](https://github.com/wlellington/LiquidRedox/blob/main/images/backlighting.jpg)
 
 ## Usage Notes
 
@@ -52,18 +54,18 @@ One of the major downsides of the KMK Split module as it currently exists, is th
 
 To fix this, I have written several expansion classes (overloaded classes?) that re-implement a few features to make it possible for the Split module to oversee communications between not only the keyboard matrix, but any other modules you choose to employ. In this repo, I added UART support for the Encoder module and LockStatus module so that the keyboard halves always perform as expected no matter which side is plugged in. The most important changes can be seen in [uart_split.py](https://github.com/wlellington/LiquidRedox/blob/main/firmware/uart_split.py) which completely overhauls the UART receiving handler so that rather than expecting only one UART headerv (defined by the split module itself), it can use a list of headers (enrolled during setup) to determine which modules are trying to communicate, how to decode their communications, and which "message queue" to store their output in. With this modification to Split, the user can tweak other extensions/modules to send formatted UART messages from either side (assuming a two wire UART connection), as well as receive messages from the other half.
 
-For example: The Encoder module generates messages on the client side (not connected to computer) and sends them to the host side. On the host side, the messages are decoded and interpreted as the corresponding keyboard taps. Since the encoder keymap is set for both sides, I also added the ability to add a None'd out encoder to serve as a placeholder on each side. This way the keymap between sides looks the same, but you can create a fake encoder that does not get updated, all while keeping the EncoderHandler happy. The implementation of this can be seen in [uart_encoder.py](https://github.com/wlellington/LiquidRedox/blob/main/firmware/uart_encoder.py)
-For example: The LockStatus module generates capslock and numlock status messages depending on what the computer's USB interface reports. The host side then formats and sends these messages to the client side, where they are decoded and used to update the clients understanding of the computers lock state. This is important mostly because capslock and numlock are on opposite halves of the keyboard, yet only the side connected to the computer actually knows what the host computer's key lock status is. In this firmware, this is used to control indicator lights. [uart_lock_status.py](https://github.com/wlellington/LiquidRedox/blob/main/firmware/uart_lock_status.py)
+For example: The Encoder module generates messages on the client side (not connected to computer) and sends them to the host side. On the host side, the messages are decoded and interpreted as the corresponding keyboard taps. Since the encoder keymap is set for both sides, I also added the ability to add a None'd out encoder to serve as a placeholder on each side. This way the keymap between sides looks the same, but you can create a fake encoder that does not get updated, all while keeping the EncoderHandler happy. The implementation of this can be seen in [uart_encoder.py](firmware/uart_encoder.py)
+For example: The LockStatus module generates capslock and numlock status messages depending on what the computer's USB interface reports. The host side then formats and sends these messages to the client side, where they are decoded and used to update the clients understanding of the computers lock state. This is important mostly because capslock and numlock are on opposite halves of the keyboard, yet only the side connected to the computer actually knows what the host computer's key lock status is. In this firmware, this is used to control indicator lights. [uart_lock_status.py](firmware/uart_lock_status.py)
 
 Check out the uart_*.py files to understand how this is done in each module. Keep in mind that you need to **import the overloaded version in your code.py in order for the changes to have effect**.
 
 #### Goofy Pin Maps
-The split module usually assumes that the two halves of the keyboard are identical, and just have the column wires swapped. I dont like this because it assumes two things - 1) each half has the same keys/layout, 2) that the same keys/layout are implemented in the same way. To get around this, I wrote a custom [kb.py](https://github.com/wlellington/LiquidRedox/blob/main/firmware/kb.py) that automatically detects which side it is booting on and assigns the pin map accordingly. This means you can mess up wiring your pins (like I did) and fix it in the software or even have asymetrical keyboards! 
+The split module usually assumes that the two halves of the keyboard are identical, and just have the column wires swapped. I dont like this because it assumes two things - 1) each half has the same keys/layout, 2) that the same keys/layout are implemented in the same way. To get around this, I wrote a custom [kb.py](firmware/kb.py) that automatically detects which side it is booting on and assigns the pin map accordingly. This means you can mess up wiring your pins (like I did) and fix it in the software or even have asymetrical keyboards! 
 
 One thing to keep in mind is that the scanning order is set by the coord_mapping list in the keyboard class. This is the order that the scanner will traverse the keys according to what it thinks is row and column zero, up through the pin list provided. When split, it tries to cut this mapping in half, where all the keys on the second keyboard (the right side) will be scanned "after" the left hand board. In reality, this Split module will just cut the list in half and just iterate over the second half of the map by calculating an offset to jump to the right scanning location. While I have not yet attempted an asymetrical board, I suspect that you might need to make separate coord_mappings for each half if you wanted the shape/number of keys to be different.
 
 #### Status RGB LED Lighting
-I have never been one for RGB lighting animations, but I do like having status indication lights or monocrome back lighting. For this keyboard, I added five neopixels per side so that I could get a sense of what layer I was on, which locks were enabled, etc.. For this, I implemented the LEDStatus class in [led_status.py](https://github.com/wlellington/LiquidRedox/blob/main/firmware/status_led.py). This should not be confused with the built in Status LED extension in KMK, as it shares no code with it. It takes in information from the attached LockStatus, DyanimicSequences, and Layers modules and runs a scheduled task to update specific LED colors whenver changes occur. It currenlty expects all of these modules to be in use, so if you choose to remove something like the DynamicSequences, you may need to edit the LEDStatus class further to remove the dependence.
+I have never been one for RGB lighting animations, but I do like having status indication lights or monocrome back lighting. For this keyboard, I added five neopixels per side so that I could get a sense of what layer I was on, which locks were enabled, etc.. For this, I implemented the LEDStatus class in [led_status.py](firmware/status_led.py). This should not be confused with the built in Status LED extension in KMK, as it shares no code with it. It takes in information from the attached LockStatus, DyanimicSequences, and Layers modules and runs a scheduled task to update specific LED colors whenver changes occur. It currenlty expects all of these modules to be in use, so if you choose to remove something like the DynamicSequences, you may need to edit the LEDStatus class further to remove the dependence.
 
 This custom extension uses an overloaded RGB class object from the KMK RGB extension to manage the LEDs themselves. My custom implementation just adds a function to let the user statically set an LED's color based on a HSV value where None can be used to keep existing settings (like brightness). It does not change the way that the animations work or are rendered, but gives finer grain control over the color of the LEDs you might want to specifically color for indicators. It wasnt really intended to be used in concert with other animations, but just to color things for this specific layout.
 
@@ -74,15 +76,15 @@ This custom extension uses an overloaded RGB class object from the KMK RGB exten
 #### The Case
 The case was orgininally based on the [Redox Media](https://github.com/shiftux/redox-media-keyboard) project, which has a very nice instructional/educational video to accompany it. However, I decided that I wanted to make something a bit more "flat" in terms if the case design (more like this project [Redox Neo](https://github.com/Pastitas/Redox-neo-Case)), so I took the base cad files from Redox Media and created a new design that keeps the encoder flush with the rest of the keys and adds 4 more slots for mechanical keys at the top of the board. This lead to a similar two peice design (top half plate, bottom half case) that was fairly easy to print and iterate on. In the end, the only shared part of the design was the base keylout itself, as I had to redesign just about every other component of the case. I went with countersunk M3 screws to hold things together.
 
-![Layout Render](https://github.com/wlellington/LiquidRedox/blob/main/images/fusion_layout.JPG)
+![Layout Render](images/fusion_layout.JPG)
 
 The bottom case was designed to only be as thick as it needed ot be, since I wanted something that was not overly bulky. Balancing this was somewhat difficult, and to took a few iterations to get enough room for the encoder boards, USB-C panel mount adapter (which I had to modify anyway), and the TRRS jack (more on those later).
 
-![3D Case Render](https://github.com/wlellington/LiquidRedox/blob/main/images/fusion_screenshot.JPG)
+![3D Case Render](images/fusion_screenshot.JPG)
 
 The main issue with the case came down to the tolerancing of the holes for the switches. At first, I made the holes a bit too small (using the same tolerancing from the Redox Media layout). The switches were snug and held in well, but I soon realized that cramming the switches into these slightly too tight spaces caused the panel to curl upward around the edges (like a potato chip), creating gaps around the edges where the two halves of the case would meet. 
 
-![Flex Issue](https://github.com/wlellington/LiquidRedox/blob/main/images/gap_issue.jpg)
+![Flex Issue](images/gap_issue.jpg)
 
 I solved this by adding a bit more tolerance to the switch mount holes and reprinting. This seemed to work at the time, but by the time I painted everything I had added back enough material to reintroduce the problem. This part of the design is somethign that could certainly be improved on in the future. I also added an extra standoff peg/pylon in the center of the board (looks like a screw mount colum with no hole in it) to support the keybed in the middle to give it a firmer feel and reduce flex.
 
@@ -92,7 +94,7 @@ After printing, I sanded down the layer lines and rough features with 120 grit s
 
 After everything was dry, I started installing the switches (I used [TTC Venus'](https://mechanicalkeyboards.com/products/ttc-venus-45g-linear-pcb-mount-switch?_pos=1&_sid=83bf7ec0e&_ss=r) since they are buttery smooth and have a nice "thock"). I noticed that my edge gaps had come back (presumably since the paint had added to the tolerances on the switch holes), so I *very gently heated the spreading spots with a hair dryer while clamping the gaps shut with the screws and switches all installed*. This is a very, very delicate process as too much heat too fast can cause PLA to warp in weird ways, so I took my time with this and kept the hair dryer moving constantly and only applied heat around the areas that needed to be relaxed. I also recommend putting a peice of paper between the part and the clamps to keep the clamps from maring or discoloring the surface of the white paint.
 
-![Flex Issue After Paint](https://github.com/wlellington/LiquidRedox/blob/main/images/gap_issue_after_paint.jpg)
+![Flex Issue After Paint](images/gap_issue_after_paint.jpg)
 
 #### The Electronics
 Once happy with the fit, I moved on to the wiring. I dont have to many notes on this whole process, since it was pretty straight forward overall. I think there are a lot of handwired keyboard projects out there that explain the matrix wiring pretty well, so I'll lean on them to better explain things. Check out some of the other linked projects in this README to get better examples.
@@ -103,13 +105,13 @@ That said, I should note that I used a few pins on the KB2040 that the docs do n
 
 Ideally, both sides would be wired the exact same way. I made a few mistakes in keeping my pin map consitent, but luckily I found a way to fix this in the firmware and it was not an issue in the end (See "Goofy Pin Maps").
 
-![Wiring](https://github.com/wlellington/LiquidRedox/blob/main/images/wiring.jpg)
+![Wiring](images/wiring.jpg)
 
 I bought a panel mount USB-C connector (which the case design takes into account) rather than try to make the microcontroller mount cleanly to the outside of the case. [Here](https://www.amazon.com/dp/B086YBP5VW?ref=ppx_yo2ov_dt_b_product_details&th=1) is the one I used, but if you end up needing a different cable, you will likely need to tweak the case design to accomidate different screw holes or a snap in type connector. I used [some standard TRRS](https://www.amazon.com/dp/B06XG3YTC4?psc=1&ref=ppx_yo2ov_dt_b_product_details) jacks (with some heatshrink) to make the UART connections. I attached the RAW pin of the KB2040 to the sleeve of the cable, UART to the two rings, and power to the tip. I had to whittle away some of the plastic on the USB-C connector's panel side to make it fit the curve of the case, and completely removed the outer most layer of plastic on the side that connects to the KB2040 to save some room on thickness.
 
 **TRRS style connectors can be a bit dangerous since there is a potential to short power to ground when inserting/removing the cable. I recomment only plugging/unplugging the connection cable when the keyboard is completely unplugged from the Computer.** I specifically chose to put the ground on the tip (since it is most likely to touch other contacts on insertion, and power on the sleeve, since it is the last to make contact.
 
-![Jacks](https://github.com/wlellington/LiquidRedox/blob/main/images/jacks.jpg)
+![Jacks](images/jacks.jpg)
 
 I recommend not screwing everything together till you know your firmware is working however, since you are likely causing a bit a damage to the screw holes each time you insert/remove the case screws. This means that theres a finite number of times you can add or remove the screws. In my process, I have problably done this six or seven times, but I am hesitant to open and close the case all willy-nilly. Since software troubleshooting can be a bit tricky (I had issues where the serial connection would drop out on me), I recommend leaving the case open so you can reach your microcontroller's reset button until you are close to finished.
 
